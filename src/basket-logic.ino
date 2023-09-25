@@ -54,17 +54,8 @@ void loop() {
   }
 }
 
-void startGame() {
-  Serial.println("starting game");
-  gameStarted = true;
-  startTime = millis();
-  FastLED.showColor(CRGB::Yellow);
-  Serial.println(GAME_SOUND);  
-  playTrack(CMD_PLAY_W_INDEX, GAME_SOUND); 
-}
-
 void updateCountdown(int remaining) {
-  // Placeholder: update your LED matrix to display the remaining time.
+  // TODO: update your LED matrix to display the remaining time.
   displayNumberOnMatrix(remaining);
 }
 
@@ -75,8 +66,19 @@ void checkBasket() {
   }
 }
 
+void startGame() {
+  Serial.println("starting game");
+  gameStarted = true;
+  startTime = millis();
+  // TODO: better effect
+  FastLED.showColor(CRGB::Yellow);
+  Serial.println(GAME_SOUND);  
+  playTrack(CMD_PLAY_W_INDEX, GAME_SOUND); 
+}
+
 void gameWon() {
   Serial.println("Game won");
+  // TODO: better effect
   FastLED.showColor(CRGB::Green);
   playRandomSound();
   resetGame();
