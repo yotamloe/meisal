@@ -4,6 +4,7 @@
 #define LED_STRIP_PIN 5
 #define NUM_STRIP_LEDS 100
 CRGB stripLeds[NUM_STRIP_LEDS];
+uint8_t colorIndex[NUM_STRIP_LEDS];
 
 // LED matrix setup
 #define LED_MATRIX_PIN 4
@@ -22,8 +23,30 @@ enum class LedEffect {
 
 volatile LedEffect currentEffect = LedEffect::Default;
 
+DEFINE_GRADIENT_PALETTE(darkpurple_gp) {
+    0, 80, 0, 130,
+    46, 60, 0, 110,
+    179, 40, 0, 90,
+    255, 30, 0, 80
+};
+
+CRGBPalette16 darkpurple = darkpurple_gp;
+
+DEFINE_GRADIENT_PALETTE(orange_gp) {
+    0,   255, 165, 0,   // Orange
+    66,  255, 140, 0,   // Darker Orange
+    179, 255, 90,  0,   // Even Darker Orange
+    255, 200, 50,  0    // Dark Orange
+};
+
+CRGBPalette16 orange = orange_gp;
+
 // Photoelectric sensor
 #define SENSOR_PIN 27
+
+// push button
+const int buttonPin = 2;     // the number of the pushbutton pin
+int buttonState = 0;         // variable for reading the pushbutton status
 
 // mp3
 #define CMD_PLAY_W_INDEX 0X03
@@ -46,41 +69,54 @@ void ledEffectTask(void * parameter) {
     
     switch (currentEffect) {
       case LedEffect::GAME_PLAY:
-        // Check if it's time to update the animation (e.g., every 10 ms)
-        if(currentMillis - previousMillis > 10) {
-          // Your non-blocking game play effect logic here
-          // For instance, the brightness fading effect:
-          static int direction = 10;
-          static int brightness = 0;
-          
-          brightness += direction;
-          if (brightness >= 200) {
-            direction = -10;
-          } else if (brightness <= 0) {
-            direction = 10;
+          if(currentMillis - previousMillis > 10) {              
+              // Create a sin wave to change the brightness of the strip
+              uint8_t sinBeat = beatsin8(95, 40, 130, 10, 0);
+              
+              // Color each pixel from the palette using the index from colorIndex[]
+              for (int i = 0; i < NUM_STRIP_LEDS; i++) {
+                  stripLeds[i] = ColorFromPalette(orange, colorIndex[i], sinBeat); 
+              }
+              
+              // Increment colorIndex values every 5 milliseconds
+              EVERY_N_MILLISECONDS(5){
+                  for (int i = 0; i < NUM_STRIP_LEDS; i++) {
+                      colorIndex[i]++;
+                  }
+              }
+              
+              FastLED.show();
+              previousMillis = currentMillis;
           }
-          FastLED.setBrightness(brightness);
-          FastLED.showColor(CRGB::Yellow);
-          
-          previousMillis = currentMillis;
-        }
-        break;
+          break;
 
       case LedEffect::GAME_WON:
-        if(currentMillis - previousMillis > 100) {
-          // Your non-blocking game won effect logic here
-          for(int i = 0; i < NUM_STRIP_LEDS; i++){
-            stripLeds[i] = CRGB::Black;
-          }
-          stripLeds[random(NUM_STRIP_LEDS)] = CRGB::Green;
-          FastLED.show();
-          
-          previousMillis = currentMillis;
-        }
-        break;
+          if(currentMillis - previousMillis > 10) {  // This interval controls the speed of the effect
 
+              uint8_t sinBeat   = beatsin8(25, 0, NUM_STRIP_LEDS - 1, 0, 0);
+              uint8_t sinBeat2  = beatsin8(10, 0, NUM_STRIP_LEDS - 1, 0, 85);
+              uint8_t sinBeat3  = beatsin8(22, 0, NUM_STRIP_LEDS - 1, 0, 170);
+              uint8_t sinBeat4  = beatsin8(32, 0, NUM_STRIP_LEDS - 1, 0, 170);
+              uint8_t sinBeat5  = beatsin8(27, 0, NUM_STRIP_LEDS - 1, 0, 170);
+
+              // Set green colors to different brightness levels based on the sinBeats
+              stripLeds[sinBeat]   = CRGB(0, 255, 70);     // Bright Green
+              stripLeds[sinBeat2]  = CRGB(0, 192, 50);     // Medium Green
+              stripLeds[sinBeat3]  = CRGB(0, 128, 20);     // Dark Green
+              stripLeds[sinBeat4]  = CRGB(0, 192, 50);     // Medium Green
+              stripLeds[sinBeat5]  = CRGB(0, 128, 20);     // Dark Green
+              // Apply blur
+              for(int i = 0; i < 5; i++) {
+                  blur1d(stripLeds, NUM_STRIP_LEDS, 50);
+              }
+              
+              FastLED.show();
+              fadeToBlackBy(stripLeds, NUM_STRIP_LEDS, 10);  // This helps in fading the previous colors
+              previousMillis = currentMillis;
+          }
+          break;
       case LedEffect::GAME_LOST:
-        if(currentMillis - previousMillis > 300) {
+        if(currentMillis - previousMillis > 400) {
           // Your non-blocking game lost effect logic here
           static bool isRed = true;
           FastLED.showColor(isRed ? CRGB::Red : CRGB::Black);
@@ -92,10 +128,26 @@ void ledEffectTask(void * parameter) {
 
       case LedEffect::Default:
       default:
-        // No effect or default effect
-        FastLED.showColor(CRGB::Black);
-        vTaskDelay(100 / portTICK_PERIOD_MS); // Use FreeRTOS delay here.
-        break;
+          if(currentMillis - previousMillis > 10) {              
+              // Create a sin wave to change the brightness of the strip
+              uint8_t sinBeat = beatsin8(15, 25, 70, 0, 0);
+              
+              // Color each pixel from the palette using the index from colorIndex[]
+              for (int i = 0; i < NUM_STRIP_LEDS; i++) {
+                  stripLeds[i] = ColorFromPalette(darkpurple, colorIndex[i], sinBeat);
+              }
+              
+              // Increment colorIndex values every 5 milliseconds
+              EVERY_N_MILLISECONDS(5){
+                  for (int i = 0; i < NUM_STRIP_LEDS; i++) {
+                      colorIndex[i]++;
+                  }
+              }
+              
+              FastLED.show();
+              previousMillis = currentMillis;
+          }
+          break;
     }
   }
 }
@@ -117,6 +169,9 @@ void setup() {
       1,               /* priority of the task */
       &LedEffectTaskHandle, /* Task handle to keep track of created task */
       1);              /* pin task to core 1 */
+  for (int i = 0; i < NUM_STRIP_LEDS; i++) {
+    colorIndex[i] = random8();
+  }
   delay(1000);
 }
 
@@ -130,10 +185,15 @@ void loop() {
       gameLost();
     }
   } else {
-      String command = Serial.readStringUntil('\n');
-      if (command == "start") {
-      startGame();
-    }
+      // read the state of the pushbutton value:
+      buttonState = digitalRead(buttonPin);
+      // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
+      if (buttonState == HIGH) {
+        startGame();
+      }
+    //   String command = Serial.readStringUntil('\n');
+    //   if (command == "start") {
+    // }
   }
 }
 
